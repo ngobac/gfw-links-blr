@@ -1,0 +1,30 @@
+name: SYNC
+on:
+  schedule:
+    - cron: "45 18 * * *"       # 01:45 giờ VN hằng đêm (lệch 45p so với Donaruco, 15p so với DNK)
+  workflow_dispatch: {}          # cho phép bấm chạy tay
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install requests
+      - run: python sync.py
+        env:
+          AGOL_USERNAME: ${{ secrets.AGOL_USERNAME }}
+          AGOL_PASSWORD: ${{ secrets.AGOL_PASSWORD }}
+          AGOL_LAYER_URL: ${{ secrets.AGOL_LAYER_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Commit links.json
+        if: ${{ !cancelled() }}         # vẫn commit khi bước ghi gfw_link lỗi
+        run: |
+          git config user.name "gfw-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/links.json
+          git diff --cached --quiet || git commit -m "sync $(date -u +%FT%H:%M)"
+          git push

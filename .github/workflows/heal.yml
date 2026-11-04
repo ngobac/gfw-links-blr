@@ -1,0 +1,29 @@
+name: HEAL
+on:
+  schedule:
+    - cron: "45 1,9,17 * * *"   # 08h45, 16h45, 00h45 giờ VN — 3 lần/ngày
+  workflow_dispatch: {}          # cho phép bấm chạy tay
+permissions:
+  contents: write
+jobs:
+  heal:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install requests
+      - run: python heal.py
+        env:
+          AGOL_USERNAME: ${{ secrets.AGOL_USERNAME }}
+          AGOL_PASSWORD: ${{ secrets.AGOL_PASSWORD }}
+          AGOL_LAYER_URL: ${{ secrets.AGOL_LAYER_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - name: Commit links.json
+        run: |
+          git config user.name "gfw-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/links.json
+          git diff --cached --quiet || git commit -m "heal $(date -u +%FT%H:%M)"
+          git push

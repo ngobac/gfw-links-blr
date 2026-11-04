@@ -1,0 +1,197 @@
+import hashlib, json, os, re, sys, time, unicodedata
+from urllib.parse import urlparse
+import requests
+
+GEOSTORE_URL = "https://production-api.globalforestwatch.org/v1/geostore"
+ID_FIELD = "ProductionPlace_sub"
+# Layer 20161104_master_lo_cty2 không có field hiện trạng -> None (không query, không lọc)
+HTRANG_FIELD = None
+# hTrang bị loại khi chọn giữa các bản ghi trùng mã lô (so sánh sau khi bỏ dấu)
+HTRANG_LOAI = {"K.K", "K.GDP"}
+# Field trên AGOL nhận lại long_url (string 4000) — SYNC ghi ngược sau mỗi lần chạy
+LINK_FIELD = "gfw_link"
+NOTIFY_PREFIX = "[BLR] "
+LINKS_PATH = "docs/links.json"
+
+def agol_token():
+    r = requests.post("https://www.arcgis.com/sharing/rest/generateToken", data={
+        "username": os.environ["AGOL_USERNAME"],
+        "password": os.environ["AGOL_PASSWORD"],
+        "referer": "https://www.arcgis.com",
+        "f": "json", "expiration": 120}, timeout=60)
+    j = r.json()
+    if "token" not in j:
+        sys.exit(f"Loi lay token AGOL: {j}")
+    return j["token"]
+
+def agol_layer_url():
+    """Làm sạch + kiểm tra dạng URL layer; chỉ in gợi ý ẩn danh (repo public)."""
+    base = os.environ["AGOL_LAYER_URL"].strip().rstrip("/")
+    if base.endswith("/FeatureServer"):        # quên chỉ số layer -> thêm /0
+        base += "/0"
+    u = urlparse(base)
+    if not re.search(r"/rest/services/.+/(Feature|Map)Server/\d+$", u.path):
+        sys.exit(
+            "AGOL_LAYER_URL sai dang. Can dang: https://services.arcgis.com/"
+            "<org>/arcgis/rest/services/<TenLayer>/FeatureServer/0\n"
+            f"Chan doan (an danh): host={u.netloc} | "
+            f"co /rest/services/ trong path: {'/rest/services/' in u.path} | "
+            f"ket thuc bang so: {bool(re.search(r'/[0-9]+$', u.path))} | "
+            f"co query string thua: {bool(u.query)}")
+    return base
+
+def fetch_features(token, where="1=1"):
+    """Query toàn bộ lô từ Feature Layer, phân trang 1000 record/lần."""
+    url = agol_layer_url() + "/query"
+    feats, offset = [], 0
+    while True:
+        r = requests.get(url, params={
+            "where": where, "outFields": ",".join(
+                f for f in (ID_FIELD, HTRANG_FIELD, LINK_FIELD) if f),
+            "returnGeometry": "true",
+            "outSR": 4326, "f": "geojson",
+            "resultOffset": offset, "resultRecordCount": 1000,
+            "token": token}, timeout=120)
+        try:
+            j = r.json()
+        except ValueError:
+            sys.exit(f"AGOL query khong tra ve JSON (kiem tra lai AGOL_LAYER_URL "
+                     f"- phai la .../FeatureServer/0). HTTP {r.status_code}, "
+                     f"Content-Type: {r.headers.get('content-type')}, "
+                     f"body: {r.text[:500]}")
+        if "error" in j:
+            sys.exit(f"AGOL query bao loi: {j['error']}")
+        batch = j.get("features", [])
+        feats += batch
+        if len(batch) < 1000:
+            return feats
+        offset += 1000
+
+def strip_accents(s):
+    """Chuyển unicode có dấu -> không dấu (kể cả đ/Đ)."""
+    s = s.replace("đ", "d").replace("Đ", "D")
+    s = unicodedata.normalize("NFD", s)
+    return "".join(c for c in s if unicodedata.category(c) != "Mn")
+
+def get_field(props, name):
+    """Tra field không phân biệt hoa thường tên field (AGOL có thể đổi case)."""
+    for k, v in props.items():
+        if k.lower() == name.lower():
+            return v
+    return None
+
+def get_id(props):
+    """Mã lô không dấu; '' nếu field có nhưng giá trị rỗng/null."""
+    if not any(k.lower() == ID_FIELD.lower() for k in props):
+        sys.exit(f"Khong thay field {ID_FIELD} trong properties. "
+                 f"Cac field co: {list(props)}")
+    v = get_field(props, ID_FIELD)
+    return strip_accents(str(v)).strip() if v is not None else ""
+
+def choose_features(feats):
+    """Bỏ bản ghi thiếu mã lô/hình học; gộp bản ghi trùng mã lô (ưu tiên hTrang
+    ngoài K.K/K.GĐP nếu layer có hTrang); trả (feats, cảnh báo)."""
+    groups, order, warns = {}, [], []
+    for f in feats:
+        i = get_id(f["properties"])
+        if not i or not f.get("geometry"):
+            warns.append(f"BO QUA OBJECTID {f.get('id')}: "
+                         f"{'trong ma lo' if not i else 'khong co hinh hoc'}")
+            continue
+        if i not in groups:
+            groups[i] = []
+            order.append(i)
+        groups[i].append(f)
+
+    def ht(f):
+        if not HTRANG_FIELD:
+            return ""
+        v = get_field(f["properties"], HTRANG_FIELD)
+        return strip_accents(str(v)).strip() if v is not None else ""
+
+    chosen = []
+    for i in order:
+        g = groups[i]
+        if len(g) == 1:
+            chosen.append(g[0])
+            continue
+        pref = [f for f in g if ht(f) not in HTRANG_LOAI]
+        pick = pref[0] if pref else g[0]
+        chosen.append(pick)
+        warns.append(f"TRUNG LAP {i}: {len(g)} ban ghi, "
+                     f"chon hTrang='{ht(pick)}'")
+    return chosen, warns
+
+def canonical(geom):
+    """Làm tròn 6 số lẻ + serialize ổn định để hash không nhảy vì jitter."""
+    def rnd(c):
+        if isinstance(c[0], (int, float)):
+            return [round(c[0], 6), round(c[1], 6)]
+        return [rnd(x) for x in c]
+    g = {"type": geom["type"], "coordinates": rnd(geom["coordinates"])}
+    return g
+
+def geom_hash(canon_geom):
+    s = json.dumps(canon_geom, sort_keys=True, separators=(",", ":"))
+    return hashlib.md5(s.encode()).hexdigest()
+
+def post_geostore(canon_geom):
+    body = {"geojson": {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {}, "geometry": canon_geom}]}}
+    r = requests.post(GEOSTORE_URL, json=body, timeout=60)
+    r.raise_for_status()
+    return r.json()["data"]["id"]
+
+def build_url(geostore_id, template):
+    return (f"https://www.globalforestwatch.org/map/geostore/"
+            f"{geostore_id}/?{template}")
+
+def write_links(token, feats, url_by_id):
+    """Ghi long_url vào LINK_FIELD cho bản ghi AGOL đang có giá trị khác
+    (kể cả bản ghi trùng mã lô); trả (số bản ghi đã ghi, danh sách lỗi).
+    OID lấy từ "id" của GeoJSON; tên field OID đọc từ metadata layer (OBJECTID/FID...)."""
+    meta = requests.get(agol_layer_url(), params={"f": "json", "token": token},
+                        timeout=60).json()
+    oid_field = meta.get("objectIdField") or "OBJECTID"
+    edits = []
+    for f in feats:
+        p = f["properties"]
+        url = url_by_id.get(get_id(p))
+        if url and get_field(p, LINK_FIELD) != url:
+            edits.append({"attributes": {oid_field: f["id"], LINK_FIELD: url}})
+    done, errs = 0, []
+    for k in range(0, len(edits), 250):
+        r = requests.post(agol_layer_url() + "/updateFeatures", data={
+            "features": json.dumps(edits[k:k + 250]), "rollbackOnFailure": "false",
+            "f": "json", "token": token}, timeout=300)
+        j = r.json()
+        if "error" in j:      # thường do layer chưa bật Editing (Update)
+            return done, errs + [f"LOI GHI {LINK_FIELD}: {j['error']}"]
+        for res in j.get("updateResults", []):
+            if res.get("success"):
+                done += 1
+            else:
+                errs.append(f"LOI GHI {LINK_FIELD} {oid_field}="
+                            f"{res.get('objectId')}: {res.get('error')}")
+    return done, errs
+
+def load_links():
+    if os.path.exists(LINKS_PATH):
+        with open(LINKS_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    return {"generated_at": None, "count": 0, "plots": []}
+
+def save_links(data):
+    os.makedirs("docs", exist_ok=True)
+    with open(LINKS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+
+def notify(msg):
+    tok = os.environ.get("TELEGRAM_BOT_TOKEN")
+    cid = os.environ.get("TELEGRAM_CHAT_ID")
+    msg = NOTIFY_PREFIX + msg
+    if not tok or not cid:
+        print("[notify]", msg)
+        return
+    requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                  json={"chat_id": cid, "text": msg[:4000]}, timeout=30)
