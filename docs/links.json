@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-21T01:04:19+07:00",
- "count": 304,
+ "generated_at": "2026-11-21T07:11:36+07:00",
+ "count": 303,
  "plots": [
   {
    "id_lo": "2.01BL.D5.09.036",
@@ -1975,12 +1975,12 @@
   },
   {
    "id_lo": "2.01BL.D6.19.203-1",
-   "long_url": "https://www.globalforestwatch.org/map/geostore/a5f253d825b498ffc26ed115b63123e8/?map=eyJkYXRhc2V0cyI6W3siZGF0YXNldCI6InBvbGl0aWNhbC1ib3VuZGFyaWVzIiwibGF5ZXJzIjpbImRpc3B1dGVkLXBvbGl0aWNhbC1ib3VuZGFyaWVzIiwicG9saXRpY2FsLWJvdW5kYXJpZXMiXSwib3BhY2l0eSI6MSwidmlzaWJpbGl0eSI6dHJ1ZX0seyJkYXRhc2V0IjoidHJlZS1jb3Zlci1sb3NzIiwibGF5ZXJzIjpbInRyZWUtY292ZXItbG9zcyJdLCJvcGFjaXR5IjoxLCJ2aXNpYmlsaXR5Ijp0cnVlLCJ0aW1lbGluZVBhcmFtcyI6eyJzdGFydERhdGUiOiIyMDIxLTAxLTAxIiwiZW5kRGF0ZSI6IjIwMjUtMTItMzEiLCJ0cmltRW5kRGF0ZSI6IjIwMjUtMTItMzEifX0seyJkYXRhc2V0IjoidHJlZS1wbGFudGF0aW9ucyIsIm9wYWNpdHkiOjEsInZpc2liaWxpdHkiOnRydWUsImxheWVycyI6WyJ0cmVlLXBsYW50YXRpb25zIl19XSwiY2FuQm91bmQiOnRydWV9",
-   "geostore_id": "a5f253d825b498ffc26ed115b63123e8",
-   "geom_hash": "3064fca2eadf92613e022884ed21f3ce",
+   "long_url": "https://www.globalforestwatch.org/map/geostore/9403b9569d00e446d35cc530034798ee/?map=eyJkYXRhc2V0cyI6W3siZGF0YXNldCI6InBvbGl0aWNhbC1ib3VuZGFyaWVzIiwibGF5ZXJzIjpbImRpc3B1dGVkLXBvbGl0aWNhbC1ib3VuZGFyaWVzIiwicG9saXRpY2FsLWJvdW5kYXJpZXMiXSwib3BhY2l0eSI6MSwidmlzaWJpbGl0eSI6dHJ1ZX0seyJkYXRhc2V0IjoidHJlZS1jb3Zlci1sb3NzIiwibGF5ZXJzIjpbInRyZWUtY292ZXItbG9zcyJdLCJvcGFjaXR5IjoxLCJ2aXNpYmlsaXR5Ijp0cnVlLCJ0aW1lbGluZVBhcmFtcyI6eyJzdGFydERhdGUiOiIyMDIxLTAxLTAxIiwiZW5kRGF0ZSI6IjIwMjUtMTItMzEiLCJ0cmltRW5kRGF0ZSI6IjIwMjUtMTItMzEifX0seyJkYXRhc2V0IjoidHJlZS1wbGFudGF0aW9ucyIsIm9wYWNpdHkiOjEsInZpc2liaWxpdHkiOnRydWUsImxheWVycyI6WyJ0cmVlLXBsYW50YXRpb25zIl19XSwiY2FuQm91bmQiOnRydWV9",
+   "geostore_id": "9403b9569d00e446d35cc530034798ee",
+   "geom_hash": "57e75d0dd5fce8f7564f4e5fc3c139bb",
    "status": "alive",
-   "last_checked": "2026-11-21T01:03:44+07:00",
-   "geom_updated_at": "2026-11-04T10:41:44+07:00"
+   "last_checked": "2026-11-21T07:11:36+07:00",
+   "geom_updated_at": "2026-11-21T07:11:36+07:00"
   },
   {
    "id_lo": "2.01BL.D5.09.033",
@@ -2188,15 +2188,6 @@
    "status": "alive",
    "last_checked": "2026-11-21T01:03:54+07:00",
    "geom_updated_at": "2026-11-04T10:41:59+07:00"
-  },
-  {
-   "id_lo": "2.01BL.D6.19.203-1-KD",
-   "long_url": "https://www.globalforestwatch.org/map/geostore/0e6313b8d4d5fab45e089aab13a5a67c/?map=eyJkYXRhc2V0cyI6W3siZGF0YXNldCI6InBvbGl0aWNhbC1ib3VuZGFyaWVzIiwibGF5ZXJzIjpbImRpc3B1dGVkLXBvbGl0aWNhbC1ib3VuZGFyaWVzIiwicG9saXRpY2FsLWJvdW5kYXJpZXMiXSwib3BhY2l0eSI6MSwidmlzaWJpbGl0eSI6dHJ1ZX0seyJkYXRhc2V0IjoidHJlZS1jb3Zlci1sb3NzIiwibGF5ZXJzIjpbInRyZWUtY292ZXItbG9zcyJdLCJvcGFjaXR5IjoxLCJ2aXNpYmlsaXR5Ijp0cnVlLCJ0aW1lbGluZVBhcmFtcyI6eyJzdGFydERhdGUiOiIyMDIxLTAxLTAxIiwiZW5kRGF0ZSI6IjIwMjUtMTItMzEiLCJ0cmltRW5kRGF0ZSI6IjIwMjUtMTItMzEifX0seyJkYXRhc2V0IjoidHJlZS1wbGFudGF0aW9ucyIsIm9wYWNpdHkiOjEsInZpc2liaWxpdHkiOnRydWUsImxheWVycyI6WyJ0cmVlLXBsYW50YXRpb25zIl19XSwiY2FuQm91bmQiOnRydWV9",
-   "geostore_id": "0e6313b8d4d5fab45e089aab13a5a67c",
-   "geom_hash": "aa00f45597ec844baff55ee3d87311e7",
-   "status": "alive",
-   "last_checked": "2026-11-21T01:03:54+07:00",
-   "geom_updated_at": "2026-11-04T10:42:00+07:00"
   },
   {
    "id_lo": "2.01BL.D4.09.056",
