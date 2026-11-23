@@ -4,7 +4,7 @@ import requests
 
 GEOSTORE_URL = "https://production-api.globalforestwatch.org/v1/geostore"
 ID_FIELD = "ProductionPlace_sub"
-# Layer 20161104_master_lo_cty2 không có field hiện trạng -> None (không query, không lọc)
+# Layer lô BLR (URL trong secret AGOL_LAYER_URL) không có field hiện trạng -> None (không query, không lọc)
 HTRANG_FIELD = None
 # hTrang bị loại khi chọn giữa các bản ghi trùng mã lô (so sánh sau khi bỏ dấu)
 HTRANG_LOAI = {"K.K", "K.GDP"}
@@ -40,14 +40,29 @@ def agol_layer_url():
             f"co query string thua: {bool(u.query)}")
     return base
 
+def oid_field_name(token):
+    """Tên field OID của layer (OBJECTID/FID/...) đọc từ metadata."""
+    meta = requests.get(agol_layer_url(), params={"f": "json", "token": token},
+                        timeout=60).json()
+    if "error" in meta:
+        sys.exit(f"AGOL metadata bao loi: {meta['error']}")
+    return meta.get("objectIdField") or "OBJECTID"
+
+def get_oid(f, oid_field):
+    """OID của feature GeoJSON: ưu tiên "id" cấp feature, nếu AGOL không trả
+    thì lấy trong properties (vì vậy OID luôn được đưa vào outFields)."""
+    v = f.get("id")
+    return v if v is not None else get_field(f["properties"], oid_field)
+
 def fetch_features(token, where="1=1"):
     """Query toàn bộ lô từ Feature Layer, phân trang 1000 record/lần."""
     url = agol_layer_url() + "/query"
+    oid = oid_field_name(token)
     feats, offset = [], 0
     while True:
         r = requests.get(url, params={
             "where": where, "outFields": ",".join(
-                f for f in (ID_FIELD, HTRANG_FIELD, LINK_FIELD) if f),
+                f for f in (oid, ID_FIELD, HTRANG_FIELD, LINK_FIELD) if f),
             "returnGeometry": "true",
             "outSR": 4326, "f": "geojson",
             "resultOffset": offset, "resultRecordCount": 1000,
@@ -95,7 +110,7 @@ def choose_features(feats):
     for f in feats:
         i = get_id(f["properties"])
         if not i or not f.get("geometry"):
-            warns.append(f"BO QUA OBJECTID {f.get('id')}: "
+            warns.append(f"BO QUA BAN GHI {f.get('id') or f['properties']}: "
                          f"{'trong ma lo' if not i else 'khong co hinh hoc'}")
             continue
         if i not in groups:
@@ -149,17 +164,19 @@ def build_url(geostore_id, template):
 def write_links(token, feats, url_by_id):
     """Ghi long_url vào LINK_FIELD cho bản ghi AGOL đang có giá trị khác
     (kể cả bản ghi trùng mã lô); trả (số bản ghi đã ghi, danh sách lỗi).
-    OID lấy từ "id" của GeoJSON; tên field OID đọc từ metadata layer (OBJECTID/FID...)."""
-    meta = requests.get(agol_layer_url(), params={"f": "json", "token": token},
-                        timeout=60).json()
-    oid_field = meta.get("objectIdField") or "OBJECTID"
-    edits = []
+    OID lấy từ "id" của GeoJSON hoặc properties; tên field OID đọc từ metadata."""
+    oid_field = oid_field_name(token)
+    edits, errs = [], []
     for f in feats:
         p = f["properties"]
         url = url_by_id.get(get_id(p))
         if url and get_field(p, LINK_FIELD) != url:
-            edits.append({"attributes": {oid_field: f["id"], LINK_FIELD: url}})
-    done, errs = 0, []
+            oid = get_oid(f, oid_field)
+            if oid is None:
+                errs.append(f"KHONG CO {oid_field} cho lo {get_id(p)}")
+                continue
+            edits.append({"attributes": {oid_field: oid, LINK_FIELD: url}})
+    done = 0
     for k in range(0, len(edits), 250):
         r = requests.post(agol_layer_url() + "/updateFeatures", data={
             "features": json.dumps(edits[k:k + 250]), "rollbackOnFailure": "false",

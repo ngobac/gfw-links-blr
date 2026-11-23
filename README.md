@@ -1,6 +1,6 @@
 # gfw-links-blr
 
-Pipeline tự động tạo và duy trì link bản đồ Global Forest Watch (GFW) cho các lô cao su của layer `20161104_master_lo_cty2` (BLR), phục vụ truy xuất nguồn gốc EUDR. Cùng cơ chế với `gfw-links-donaruco` và `gfw-links-dnk`.
+Pipeline tự động tạo và duy trì link bản đồ Global Forest Watch (GFW) cho các lô cao su BLR (Feature Layer trên ArcGIS Online, URL khai báo trong secret `AGOL_LAYER_URL`), phục vụ truy xuất nguồn gốc EUDR. Cùng cơ chế với `gfw-links-donaruco` và `gfw-links-dnk`.
 
 ## Sản phẩm bàn giao
 
@@ -22,6 +22,17 @@ Cùng link được ghi ngược vào field `gfw_link` (string 4000) của Featu
 Secrets cần khai báo trong Settings → Secrets and variables → Actions:
 `AGOL_USERNAME`, `AGOL_PASSWORD`, `AGOL_LAYER_URL`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
-`AGOL_LAYER_URL` = `https://services-ap1.arcgis.com/<org>/arcgis/rest/services/20161104_master_lo_cty2/FeatureServer/0`.
+`AGOL_LAYER_URL` = `https://services-ap1.arcgis.com/<org>/arcgis/rest/services/<TenLayer>/FeatureServer/0`.
+
+### Đổi Feature Layer
+
+Code không ghi cứng tên layer; đổi layer chỉ cần cập nhật secret `AGOL_LAYER_URL` rồi chạy tay SYNC. Layer mới phải có:
+
+- Field `ProductionPlace_sub` (mã lô, không phân biệt hoa thường) và `gfw_link` (String 4000).
+- Editing bật **Update**; tài khoản `AGOL_USERNAME` có quyền sửa layer.
+
+`docs/links.json` được giữ nguyên: lô trùng mã và trùng ranh (so hash hình học làm tròn 6 số lẻ) giữ nguyên link, không gọi lại GFW. Lần SYNC đầu ghi `gfw_link` cho toàn bộ bản ghi của layer mới. Mã lô không còn trên layer mới bị loại khỏi `links.json` và báo `LO BI XOA` qua Telegram.
+
+Lịch sử layer: `20161104_master_lo_cty2` (đến 11/2026).
 
 `map_template.txt` chứa phần query string cấu hình layer (Tree cover loss 2021→nay + Tree plantations). Khi GFW ra dữ liệu TCL năm mới (~tháng 4): cập nhật template (ở cả 3 repo), xóa `docs/links.json`, chạy tay SYNC để rebuild toàn bộ URL.
